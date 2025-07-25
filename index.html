@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام متابعة الحضور والحفظ - مركز حامل المسك</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+        body { font-family: 'Amiri', serif; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Slider styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        
+        input[type="range"]::-webkit-slider-track {
+            background: #e5e7eb;
+            height: 8px;
+            border-radius: 4px;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #10b981;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        input[type="range"]::-moz-range-track {
+            background: #e5e7eb;
+            height: 8px;
+            border-radius: 4px;
+            border: none;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            background: #10b981;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .review-slider::-webkit-slider-thumb {
+            background: #3b82f6;
+        }
+        
+        .review-slider::-moz-range-thumb {
+            background: #3b82f6;
+        }
+        
+        .student-name {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        
+        .student-name:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .student-present {
+            color: #059669;
+            font-weight: 900;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .student-absent {
+            color: #dc2626;
+            font-weight: 900;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            background-color: #fee2e2;
+            border: 1px solid #fecaca;
+        }
+        
+        .disabled-buttons button {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; }
+            .print-break { page-break-after: always; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-emerald-50 to-teal-100 min-h-screen">
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <h2 class="text-xl font-bold text-gray-800 mb-6 text-center">تسجيل دخول الشيخ المشرف</h2>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور:</label>
+                <input type="password" id="passwordInput" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="أدخل كلمة المرور">
+            </div>
+            <div class="flex space-x-4 space-x-reverse">
+                <button onclick="checkPassword()" class="flex-1 bg-emerald-600 text-white py-2 px-4 rounded-md hover:bg-emerald-700 transition-colors">
+                    دخول
+                </button>
+                <button onclick="closeLoginModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 transition-colors">
+                    إلغاء
+                </button>
+            </div>
+            <div id="loginError" class="text-red-600 text-sm mt-2 hidden">كلمة المرور غير صحيحة</div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg no-print">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4 space-x-reverse">
+                    <div class="bg-white/20 p-3 rounded-full">
+                        <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold">مركز حامل المسك لتحفيظ القرآن الكريم</h1>
+                        <p class="text-emerald-100">نظام متابعة الحضور والحفظ</p>
+                    </div>
+                </div>
+                <div class="text-left">
+                    <div class="text-sm text-emerald-100">الأسبوع الحالي</div>
+                    <div class="font-bold" id="currentWeek"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-6 py-8">
+        <!-- Navigation Tabs -->
+        <div class="bg-white rounded-lg shadow-md mb-8 no-print">
+            <div class="flex flex-wrap border-b">
+                <button onclick="showTab('group1')" id="tab-group1" class="flex-1 min-w-0 py-4 px-3 text-center font-semibold border-b-2 border-emerald-500 text-emerald-600 bg-emerald-50 text-sm">
+                    المجموعة الأولى<br><span class="text-xs">الشيخ محمد بدور</span>
+                </button>
+                <button onclick="showTab('group2')" id="tab-group2" class="flex-1 min-w-0 py-4 px-3 text-center font-semibold text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 transition-colors text-sm">
+                    المجموعة الثانية<br><span class="text-xs">الشيخ معتصم التميمي</span>
+                </button>
+                <button onclick="showTab('group3')" id="tab-group3" class="flex-1 min-w-0 py-4 px-3 text-center font-semibold text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 transition-colors text-sm">
+                    المجموعة الثالثة<br><span class="text-xs">الشيخ عبادة جلال</span>
+                </button>
+                <button onclick="showTab('group4')" id="tab-group4" class="flex-1 min-w-0 py-4 px-3 text-center font-semibold text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 transition-colors text-sm">
+                    المجموعة الرابعة<br><span class="text-xs">الشيخ محمد عمار</span>
+                </button>
+                <button onclick="showSupervisorTab()" id="tab-supervisor" class="flex-1 min-w-0 py-4 px-3 text-center font-semibold text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 transition-colors text-sm">
+                    الشيخ المشرف<br><span class="text-xs">إحصائيات شاملة</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Group Templates (Groups 1-4) -->
+        <div id="content-group1" class="tab-content fade-in">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <span class="bg-emerald-100 text-emerald-600 px-3 py-1 rounded-full text-sm ml-3">المجموعة الأولى</span>
+                    الشيخ محمد بدور
+                </h2>
+                
+                <!-- Day Selection -->
+                <div class="mb-6 no-print">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">اختر اليوم:</label>
+                    <div class="flex space-x-4 space-x-reverse">
+                        <button onclick="selectDay('group1', 'wednesday')" id="group1-wed" class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors">
+                            الأربعاء
+                        </button>
+                        <button onclick="selectDay('group1', 'saturday')" id="group1-sat" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                            السبت
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Students Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse border border-gray-300">
+                        <thead>
+                            <tr class="bg-emerald-50">
+                                <th class="border border-gray-300 px-4 py-3 text-right font-semibold">اسم الطالب (انقر للتبديل بين حاضر/غائب)</th>
+                                <th class="border border-gray-300 px-4 py-3 text-center font-semibold">الحفظ (صفحات)</th>
+                                <th class="border border-gray-300 px-4 py-3 text-center font-semibold">المراجعة (صفحات)</th>
+                                <th class="border border-gray-300 px-4 py-3 text-center font-semibold">ملاحظات (رقم الصفحة)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="group1-students"></tbody>
+                    </table>
+                </div>
+
+                <!-- Group Statistics -->
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-blue-600" id="group1-present">0</div>
+                        <div class="text-sm text-blue-600">حاضر</div>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-red-600" id="group1-absent">0</div>
+                        <div class="text-sm text-red-600">غائب</div>
+                    </div>
+                    <div class="bg-emerald-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-emerald-600" id="group1-total-pages">0</div>
+                        <div class="text-sm text-emerald-600">إجمالي الصفحات المحفوظة</div>
+                    </div>
+                </div>
+
+                <!-- Absent Students List -->
+                <div class="mt-6 bg-red-50 p-4 rounded-lg" id="group1-absent-list" style="display: none;">
+                    <h3 class="text-lg font-semibold text-red-800 mb-3">قائمة الغياب:</h3>
+                    <div class="text-red-700" id="group1-absent-names"></div>
+                </div>
+
+                <!-- Honor Roll -->
+                <div class="mt-6 bg-yellow-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-yellow-800 mb-3">🏆 قائمة الشرف - أكثر الطلبة إنجازاً:</h3>
+                    <div id="group1-honor-roll" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Similar structure for groups 2, 3, 4 -->
+        <div id="content-group2" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <span class="bg-teal-100 text-teal-600 px-3 py-1 rounded-full text-sm ml-3">المجموعة الثانية</span>
+                    الشيخ معتصم التميمي
+                </h2>
+                
+                <div class="mb-6 no-print">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">اختر اليوم:</label>
+                    <div class="flex space-x-4 space-x-reverse">
+                        <button onclick="selectDay('group2', 'wednesday')" id="group2-wed" class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors">الأربعاء</button>
+                        <button onclick="selectDay('group2', 'saturday')" id="group2-sat" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">السبت</button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse border border-gray-300">
+                        <thead>
+                            <tr class="bg-teal-50">
+                                <th class="border border-gray-300 px-4 py-3 text-right font-semibold">اسم الطالب (انقر للتبديل بين حاضر/غائب)</th>
+                                <th class="border border-gray-300 px-4 py-3 text-center font-semibold">الحفظ (صفحات)</th>
+                                <th class="border border-gray-300 px-4 py-3 text-center font-semibold">المراجعة (صفحات)</th>
+                                <th class="border border-gray-300 px-4 py-3 text-center font-semibold">ملاحظات (رقم الصفحة)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="group2-students"></tbody>
+                    </table>
+                </div>
+
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-blue-600" id="group2-present">0</div>
+                        <div class="text-sm text-blue-600">حاضر</div>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-red-600" id="group2-absent">0</div>
+                        <div class="text-sm text-red-600">غائب</div>
+                    </div>
+                    <div class="bg-teal-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-teal-600" id="group2-total-pages">0</div>
+                        <div class="text-sm text-teal-600">إجمالي الصفحات المحفوظة</div>
+                    </div>
+                </div>
+
+                <!-- Absent Students List -->
+                <div class="mt-6 bg-red-50 p-4 rounded-lg" id="group2-absent-list" style="display: none;">
+                    <h3 class="text-lg font-semibold text-red-800 mb-3">قائمة الغياب:</h3>
+                    <div class="text-red-700" id="group2-absent-names"></div>
+                </div>
+
+                <!-- Honor Roll -->
+                <div class="mt-6 bg-yellow-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-yellow-800 mb-3">🏆 قائمة الشرف - أكثر الطلبة إنجازاً:</h3>
+                    <div id="group2-honor-roll" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-group3" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <span class="bg-purple-100 text-purple-600 px-3 py-1 rounded-full text-sm ml-3">المجموعة الثالثة</span>
+                    الشيخ عبادة جلال
+                </h2>
+                
+                <div class="mb-6 no-print">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">اختر اليوم:</label>
+                    <div class="flex space-x-4 space-x-reverse">
+                        <button onclick="selectDay('group3', 'wednesday')" id="group3-wed" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">الأربعاء</button>
+                        <button onclick="selectDay('group3', 'saturday')" id="group3-sat" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">السبت</button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse border border-gray-300">
+                        <thead>
+                            <tr class="bg-purple-50">
+                                <th class="border border-gray-300 px-4 py-3 text-right font-semibold">اسم الطالب (انقر للتبديل بين حاضر/غائب)</th>
+                                <th class="border border-gray-300 px-4 py-3 text-center font-semibold">الحفظ (صفحات)</th>
+                                <th class="border border-gray-300 px-4 py-3 text-center font-semibold">المراجعة (صفحات)</th>
+                                <th class="border border-gray-300 px-4 py-3 text-center font-semibold">ملاحظات (رقم الصفحة)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="group3-students"></tbody>
+                    </table>
+                </div>
+
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-blue-600" id="group3-present">0</div>
+                        <div class="text-sm text-blue-600">حاضر</div>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-red-600" id="group3-absent">0</div>
+                        <div class="text-sm text-red-600">غائب</div>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-purple-600" id="group3-total-pages">0</div>
+                        <div class="text-sm text-purple-600">إجمالي الصفحات المحفوظة</div>
+                    </div>
+                </div>
+
+                <!-- Absent Students List -->
+                <div class="mt-6 bg-red-50 p-4 rounded-lg" id="group3-absent-list" style="display: none;">
+                    <h3 class="text-lg font-semibold text-red-800 mb-3">قائمة الغياب:</h3>
+                    <div class="text-red-700" id="group3-absent-names"></div>
+                </div>
+
+                <!-- Honor Roll -->
+                <div class="mt-6 bg-yellow-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-yellow-800 mb-3">🏆 قائمة الشرف - أكثر الطلبة إنجازاً:</h3>
+                    <div id="group3-honor-roll" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-group4" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <span class="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-sm ml-3">المجموعة الرابعة</span>
+                    الشيخ محمد عمار
+                </h2>
+                
+                <div class="mb-6 no-print">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">اختر اليوم:</label>
+                    <div class="flex space-x-4 space-x-reverse">
+                        <button onclick="selectDay('group4', 'wednesday')" id="group4-wed" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">الأربعاء</button>
+                        <button onclick="selectDay('group4', 'saturday')" id="group4-sat" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">السبت</button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse border border-gray-300">
+                        <thead>
+                            <tr class="bg-orange-50">
+                                <th class="border border-gray-300 px-4 py-3 text-right font-semibold">اسم الطالب (انقر للتبديل بين حاضر/غائب)</th>
+                                <th class="border border-gray-300 px-4 py-3 text-center font-semibold">الحفظ (صفحات)</th>
+                                <th class="border border-gray-300 px-4 py-3 text-center font-semibold">المراجعة (صفحات)</th>
+                                <th class="border border-gray-300 px-4 py-3 text-center font-semibold">ملاحظات (رقم الصفحة)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="group4-students"></tbody>
+                    </table>
+                </div>
+
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-blue-600" id="group4-present">0</div>
+                        <div class="text-sm text-blue-600">حاضر</div>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-red-600" id="group4-absent">0</div>
+                        <div class="text-sm text-red-600">غائب</div>
+                    </div>
+                    <div class="bg-orange-50 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-orange-600" id="group4-total-pages">0</div>
+                        <div class="text-sm text-orange-600">إجمالي الصفحات المحفوظة</div>
+                    </div>
+                </div>
+
+                <!-- Absent Students List -->
+                <div class="mt-6 bg-red-50 p-4 rounded-lg" id="group4-absent-list" style="display: none;">
+                    <h3 class="text-lg font-semibold text-red-800 mb-3">قائمة الغياب:</h3>
+                    <div class="text-red-700" id="group4-absent-names"></div>
+                </div>
+
+                <!-- Honor Roll -->
+                <div class="mt-6 bg-yellow-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-yellow-800 mb-3">🏆 قائمة الشرف - أكثر الطلبة إنجازاً:</h3>
+                    <div id="group4-honor-roll" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supervisor Statistics -->
+        <div id="content-supervisor" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                        <span class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full text-sm ml-3">إحصائيات شاملة</span>
+                        الشيخ المشرف
+                    </h2>
+                    
+                    <!-- Export and Print Buttons -->
+                    <div class="flex space-x-4 space-x-reverse no-print">
+                        <button onclick="exportToCSV()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center">
+                            <svg class="w-4 h-4 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M3 17a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"/>
+                            </svg>
+                            تصدير CSV
+                        </button>
+                        <button onclick="printReport()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                            <svg class="w-4 h-4 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2z"/>
+                            </svg>
+                            طباعة التقرير
+                        </button>
+                        <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
+                            تسجيل خروج
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Overall Statistics -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-lg text-center">
+                        <div class="text-3xl font-bold" id="total-students">55</div>
+                        <div class="text-blue-100">إجمالي الطلاب</div>
+                    </div>
+                    <div class="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white p-6 rounded-lg text-center">
+                        <div class="text-3xl font-bold" id="total-present">0</div>
+                        <div class="text-emerald-100">إجمالي الحضور</div>
+                    </div>
+                    <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-lg text-center">
+                        <div class="text-3xl font-bold" id="total-memorized">0</div>
+                        <div class="text-purple-100">إجمالي الصفحات المحفوظة</div>
+                    </div>
+                    <div class="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6 rounded-lg text-center">
+                        <div class="text-3xl font-bold" id="total-reviewed">0</div>
+                        <div class="text-orange-100">إجمالي صفحات المراجعة</div>
+                    </div>
+                </div>
+
+                <!-- Group Comparison -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-emerald-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold text-emerald-800 mb-4">المجموعة الأولى - الشيخ محمد بدور</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span>عدد الطلاب:</span>
+                                <span class="font-bold">14</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>الحضور اليوم:</span>
+                                <span class="font-bold text-emerald-600" id="group1-today-present">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>الصفحات المحفوظة:</span>
+                                <span class="font-bold text-emerald-600" id="group1-supervisor-pages">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-teal-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold text-teal-800 mb-4">المجموعة الثانية - الشيخ معتصم التميمي</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span>عدد الطلاب:</span>
+                                <span class="font-bold">15</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>الحضور اليوم:</span>
+                                <span class="font-bold text-teal-600" id="group2-today-present">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>الصفحات المحفوظة:</span>
+                                <span class="font-bold text-teal-600" id="group2-supervisor-pages">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-purple-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold text-purple-800 mb-4">المجموعة الثالثة - الشيخ عبادة جلال</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span>عدد الطلاب:</span>
+                                <span class="font-bold">13</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>الحضور اليوم:</span>
+                                <span class="font-bold text-purple-600" id="group3-today-present">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>الصفحات المحفوظة:</span>
+                                <span class="font-bold text-purple-600" id="group3-supervisor-pages">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-orange-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold text-orange-800 mb-4">المجموعة الرابعة - الشيخ محمد عمار</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span>عدد الطلاب:</span>
+                                <span class="font-bold">13</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>الحضور اليوم:</span>
+                                <span class="font-bold text-orange-600" id="group4-today-present">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>الصفحات المحفوظة:</span>
+                                <span class="font-bold text-orange-600" id="group4-supervisor-pages">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overall Absent Students -->
+                <div class="mt-8 bg-red-50 p-6 rounded-lg" id="supervisor-absent-list" style="display: none;">
+                    <h3 class="text-xl font-semibold text-red-800 mb-4">📋 قائمة الغياب الشاملة:</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                            <h4 class="font-semibold text-emerald-700 mb-2">المجموعة الأولى:</h4>
+                            <div class="text-red-700 text-sm" id="supervisor-group1-absent"></div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-teal-700 mb-2">المجموعة الثانية:</h4>
+                            <div class="text-red-700 text-sm" id="supervisor-group2-absent"></div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-purple-700 mb-2">المجموعة الثالثة:</h4>
+                            <div class="text-red-700 text-sm" id="supervisor-group3-absent"></div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-orange-700 mb-2">المجموعة الرابعة:</h4>
+                            <div class="text-red-700 text-sm" id="supervisor-group4-absent"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overall Honor Roll -->
+                <div class="mt-8 bg-yellow-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold text-yellow-800 mb-4">🏆 قائمة الشرف الشاملة - أكثر الطلبة إنجازاً:</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-4 rounded-lg">
+                            <h4 class="font-semibold text-emerald-700 mb-3">🥇 الأوائل في الحفظ:</h4>
+                            <div id="supervisor-memorization-honor" class="space-y-2"></div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg">
+                            <h4 class="font-semibold text-blue-700 mb-3">🥇 الأوائل في المراجعة:</h4>
+                            <div id="supervisor-review-honor" class="space-y-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Student data
+        const students = {
+            group1: [
+                "أحمد رامي عزمي أبو خضر", "إسحاق محمود عمر سليمان", "ضياء محمد محمود البرغوثي",
+                "عبادة مراد زهير الحداد", "عبيدة عامر خليل صبحة", "عبيدة مصعب أحمد البرغوثي",
+                "عدي حسين فتحي القيسي", "عمران حسن محمد سعيد كنانة", "محمد حمزة محمد هديب",
+                "محمد عبد الرحمن نايف عجوة", "محمد عماد محمد اللحام", "مؤمن بكر الهنداوي",
+                "نصر عاطف نصر الحجوج", "يوسف محمد محمود ملحم"
+            ],
+            group2: [
+                "إبراهيم أحمد محمد الخوالدة", "إبراهيم معتز صبحي الحامد", "أحمد وليد رجائي الغضبان",
+                "بشار حسن محمد سعيد كنانة", "جميل صالح جميل البرغوثي", "خالد محمد خالد داود",
+                "ريان يوسف نور مادبر", "عبد الرحمن أيمن سليم الشبيطة", "عبد الله طارق نايف عجوة",
+                "عبد الملك جلال إبراهيم الخلايلة", "عثمان أحمد نور الخضري", "محمد خضر عبد ربه داود",
+                "محمد نور الدين الأحمد", "محمود عماد محمد اللحام", "نور ياسين نور مادبر"
+            ],
+            group3: [
+                "آدم عبد الله عبد ربه داود", "أسامة محمد سعدات دار حسان", "بكر أحمد علي عياصرة",
+                "حمزة محمود جبرين محمد", "زيد محمد نصر الحجوج", "عبد الرحمن إبراهيم توفيق التميمي",
+                "عبد الرحمن أمين حسن الأشقر", "عبد الرحمن محمود إسماعيل بنات", "عبد العزيز أحمد نور الخضري",
+                "عبد الله خالد صبحي حسين", "عمر بسام إبراهيم اللحام", "فيصل بلال أحمد الربعي",
+                "معاذ أحمد محمد جبر"
+            ],
+            group4: [
+                "حذيفة أحمد علي عياصرة", "ضياء الدين أنس عوض الخطيب", "العباس محمود صالح عبد الله",
+                "عبد الله عامر خليل صبحة", "عبد الله محمود إسماعيل بنات", "عبد الله محمود جبرين محمد",
+                "عمر مؤيد صبحي الحامد", "عنان عمر إبراهيم البرغوثي", "محمد أحمد محمد الخوالدة",
+                "محمد صالح جميل البرغوثي", "مصطفى محمد عبد الرحيم قبعة", "معاذ إبراهيم صقر عبد الرزاق",
+                "وسام يوسف جبرين محمد"
+            ]
+        };
+
+        const teachers = {
+            group1: "الشيخ محمد بدور",
+            group2: "الشيخ معتصم التميمي", 
+            group3: "الشيخ عبادة جلال",
+            group4: "الشيخ محمد عمار"
+        };
+
+        // Password for supervisor access
+        const SUPERVISOR_PASSWORD = "مشرف2024";
+        let isLoggedIn = false;
+
+        // Current selections
+        let currentGroup = 'group1';
+        let currentDay = 'wednesday';
+
+        // Initialize the system
+        function init() {
+            updateCurrentWeek();
+            ['group1', 'group2', 'group3', 'group4'].forEach(group => {
+                populateStudents(group);
+                selectDay(group, 'wednesday');
+                // Set default attendance to present and update stats
+                setTimeout(() => {
+                    updateStats(group);
+                }, 100);
+            });
+        }
+
+        // Update current week display
+        function updateCurrentWeek() {
+            const now = new Date();
+            const weekStart = new Date(now);
+            weekStart.setDate(now.getDate() - now.getDay() + 3); // Wednesday
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 3); // Saturday
+            
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentWeek').textContent = 
+                `${weekStart.toLocaleDateString('ar-SA', options)} - ${weekEnd.toLocaleDateString('ar-SA', options)}`;
+        }
+
+        // Show tab content
+        function showTab(tab) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('[id^="tab-"]').forEach(tabBtn => {
+                tabBtn.className = tabBtn.className.replace(/border-b-2 border-\w+-500 text-\w+-600 bg-\w+-50/, 'text-gray-600 hover:text-emerald-600 hover:bg-emerald-50');
+            });
+            
+            // Show selected tab content
+            document.getElementById(`content-${tab}`).classList.remove('hidden');
+            
+            // Add active class to selected tab
+            const activeTab = document.getElementById(`tab-${tab}`);
+            activeTab.className = activeTab.className.replace('text-gray-600 hover:text-emerald-600 hover:bg-emerald-50', 'border-b-2 border-emerald-500 text-emerald-600 bg-emerald-50');
+        }
+
+        // Show supervisor tab with password protection
+        function showSupervisorTab() {
+            if (!isLoggedIn) {
+                document.getElementById('loginModal').classList.remove('hidden');
+                document.getElementById('passwordInput').focus();
+            } else {
+                showTab('supervisor');
+                updateSupervisorStats();
+            }
+        }
+
+        // Check password
+        function checkPassword() {
+            const password = document.getElementById('passwordInput').value;
+            if (password === SUPERVISOR_PASSWORD) {
+                isLoggedIn = true;
+                closeLoginModal();
+                showTab('supervisor');
+                updateSupervisorStats();
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
+                document.getElementById('passwordInput').value = '';
+            }
+        }
+
+        // Close login modal
+        function closeLoginModal() {
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('loginError').classList.add('hidden');
+            document.getElementById('passwordInput').value = '';
+        }
+
+        // Logout
+        function logout() {
+            isLoggedIn = false;
+            showTab('group1');
+        }
+
+        // Handle Enter key in password input
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    checkPassword();
+                }
+            });
+        });
+
+        // Select day
+        function selectDay(group, day) {
+            currentGroup = group;
+            currentDay = day;
+            
+            // Update button styles
+            const colors = {
+                group1: 'emerald',
+                group2: 'teal', 
+                group3: 'purple',
+                group4: 'orange'
+            };
+            const color = colors[group];
+            
+            document.getElementById(`${group}-wed`).className = 
+                day === 'wednesday' 
+                ? `px-4 py-2 bg-${color}-500 text-white rounded-lg hover:bg-${color}-600 transition-colors`
+                : 'px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors';
+            
+            document.getElementById(`${group}-sat`).className = 
+                day === 'saturday' 
+                ? `px-4 py-2 bg-${color}-500 text-white rounded-lg hover:bg-${color}-600 transition-colors`
+                : 'px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors';
+        }
+
+        // Populate students table
+        function populateStudents(group) {
+            const tbody = document.getElementById(`${group}-students`);
+            tbody.innerHTML = '';
+            
+            students[group].forEach((student, index) => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                row.innerHTML = `
+                    <td class="border border-gray-300 px-4 py-3">
+                        <div class="student-name student-present" onclick="toggleStudentAttendance(this, '${group}')" data-status="present">
+                            ${student}
+                        </div>
+                    </td>
+                    <td class="border border-gray-300 px-4 py-3 text-center">
+                        <div class="flex items-center justify-center space-x-2 space-x-reverse">
+                            <button onclick="changePages(this, -1, '${group}')" class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold transition-colors">
+                                -
+                            </button>
+                            <span class="memorization-value text-lg font-bold text-emerald-600 min-w-[2rem] text-center">0</span>
+                            <button onclick="changePages(this, 1, '${group}')" class="bg-emerald-500 hover:bg-emerald-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold transition-colors">
+                                +
+                            </button>
+                        </div>
+                    </td>
+                    <td class="border border-gray-300 px-4 py-3 text-center">
+                        <div class="flex items-center justify-center space-x-2 space-x-reverse">
+                            <button onclick="changePages(this, -1, '${group}')" class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold transition-colors">
+                                -
+                            </button>
+                            <span class="review-value text-lg font-bold text-blue-600 min-w-[2rem] text-center">0</span>
+                            <button onclick="changePages(this, 1, '${group}')" class="bg-blue-500 hover:bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold transition-colors">
+                                +
+                            </button>
+                        </div>
+                    </td>
+                    <td class="border border-gray-300 px-4 py-3 text-center">
+                        <input type="text" placeholder="رقم الصفحة..." 
+                               class="notes-input w-24 px-2 py-1 border border-gray-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Toggle student attendance by clicking on name
+        function toggleStudentAttendance(nameElement, group) {
+            const currentStatus = nameElement.dataset.status;
+            const row = nameElement.closest('tr');
+            const memorizationCell = row.querySelector('td:nth-child(2)');
+            const reviewCell = row.querySelector('td:nth-child(3)');
+            
+            if (currentStatus === 'present') {
+                // Change to absent
+                nameElement.dataset.status = 'absent';
+                nameElement.className = 'student-name student-absent';
+                
+                // Disable buttons and reset values
+                memorizationCell.classList.add('disabled-buttons');
+                reviewCell.classList.add('disabled-buttons');
+                memorizationCell.querySelector('.memorization-value').textContent = '0';
+                reviewCell.querySelector('.review-value').textContent = '0';
+            } else {
+                // Change to present
+                nameElement.dataset.status = 'present';
+                nameElement.className = 'student-name student-present';
+                
+                // Enable buttons
+                memorizationCell.classList.remove('disabled-buttons');
+                reviewCell.classList.remove('disabled-buttons');
+            }
+            
+            updateStats(group);
+        }
+
+        // Change pages count with buttons
+        function changePages(button, change, group) {
+            const valueSpan = button.parentElement.querySelector('.memorization-value, .review-value');
+            let currentValue = parseInt(valueSpan.textContent);
+            let newValue = currentValue + change;
+            
+            // Ensure value stays within bounds (1-10)
+            if (newValue < 1) newValue = 1;
+            if (newValue > 10) newValue = 10;
+            
+            valueSpan.textContent = newValue;
+            updateStats(group);
+        }
+
+        // Update statistics
+        function updateStats(group) {
+            const rows = document.querySelectorAll(`#${group}-students tr`);
+            let present = 0, absent = 0, totalPages = 0;
+            let absentStudents = [];
+            let studentsData = [];
+            
+            rows.forEach(row => {
+                const nameElement = row.querySelector('.student-name');
+                const attendance = nameElement?.dataset.status || 'present';
+                const memorization = parseInt(row.querySelector('.memorization-value')?.textContent) || 0;
+                const review = parseInt(row.querySelector('.review-value')?.textContent) || 0;
+                const studentName = nameElement.textContent.trim();
+                
+                if (attendance === 'present') {
+                    present++;
+                    totalPages += memorization;
+                    studentsData.push({
+                        name: studentName,
+                        memorization: memorization,
+                        review: review,
+                        total: memorization + review
+                    });
+                } else if (attendance === 'absent') {
+                    absent++;
+                    absentStudents.push(studentName);
+                }
+            });
+            
+            document.getElementById(`${group}-present`).textContent = present;
+            document.getElementById(`${group}-absent`).textContent = absent;
+            document.getElementById(`${group}-total-pages`).textContent = totalPages;
+            
+            // Update absent students list
+            const absentListDiv = document.getElementById(`${group}-absent-list`);
+            const absentNamesDiv = document.getElementById(`${group}-absent-names`);
+            
+            if (absentStudents.length > 0) {
+                absentListDiv.style.display = 'block';
+                absentNamesDiv.innerHTML = absentStudents.map(name => `• ${name}`).join('<br>');
+            } else {
+                absentListDiv.style.display = 'none';
+            }
+            
+            // Update honor roll
+            updateHonorRoll(group, studentsData);
+        }
+        
+        // Update honor roll for a group
+        function updateHonorRoll(group, studentsData) {
+            const honorRollDiv = document.getElementById(`${group}-honor-roll`);
+            
+            // Sort by total achievement (memorization + review)
+            const topStudents = studentsData
+                .filter(student => student.total > 0)
+                .sort((a, b) => b.total - a.total)
+                .slice(0, 5);
+            
+            if (topStudents.length > 0) {
+                const medals = ['🥇', '🥈', '🥉', '🏅', '⭐'];
+                honorRollDiv.innerHTML = topStudents.map((student, index) => 
+                    `<div class="flex justify-between items-center bg-white p-2 rounded border">
+                        <span>${medals[index]} ${student.name}</span>
+                        <span class="text-sm text-gray-600">حفظ: ${student.memorization} | مراجعة: ${student.review} | المجموع: ${student.total}</span>
+                    </div>`
+                ).join('');
+            } else {
+                honorRollDiv.innerHTML = '<div class="text-gray-500 text-center">لا توجد إنجازات بعد</div>';
+            }
+        }
+
+        // Update supervisor statistics
+        function updateSupervisorStats() {
+            let totalPresent = 0, totalMemorized = 0, totalReviewed = 0;
+            let allStudentsData = [];
+            let hasAbsentStudents = false;
+            
+            ['group1', 'group2', 'group3', 'group4'].forEach(group => {
+                const present = parseInt(document.getElementById(`${group}-present`).textContent) || 0;
+                const pages = parseInt(document.getElementById(`${group}-total-pages`).textContent) || 0;
+                
+                totalPresent += present;
+                totalMemorized += pages;
+                
+                document.getElementById(`${group}-today-present`).textContent = present;
+                document.getElementById(`${group}-supervisor-pages`).textContent = pages;
+                
+                // Collect absent students for supervisor view
+                const rows = document.querySelectorAll(`#${group}-students tr`);
+                let groupAbsentStudents = [];
+                
+                rows.forEach(row => {
+                    const nameElement = row.querySelector('.student-name');
+                    const attendance = nameElement?.dataset.status || 'present';
+                    const memorization = parseInt(row.querySelector('.memorization-value')?.textContent) || 0;
+                    const review = parseInt(row.querySelector('.review-value')?.textContent) || 0;
+                    const studentName = nameElement.textContent.trim();
+                    
+                    if (attendance === 'absent') {
+                        groupAbsentStudents.push(studentName);
+                        hasAbsentStudents = true;
+                    } else if (attendance === 'present') {
+                        totalReviewed += review;
+                        allStudentsData.push({
+                            name: studentName,
+                            group: group,
+                            memorization: memorization,
+                            review: review,
+                            total: memorization + review
+                        });
+                    }
+                });
+                
+                // Update group absent list in supervisor view
+                const groupAbsentDiv = document.getElementById(`supervisor-${group}-absent`);
+                if (groupAbsentStudents.length > 0) {
+                    groupAbsentDiv.innerHTML = groupAbsentStudents.map(name => `• ${name}`).join('<br>');
+                } else {
+                    groupAbsentDiv.innerHTML = '<span class="text-green-600">لا يوجد غياب</span>';
+                }
+            });
+            
+            document.getElementById('total-present').textContent = totalPresent;
+            document.getElementById('total-memorized').textContent = totalMemorized;
+            document.getElementById('total-reviewed').textContent = totalReviewed;
+            
+            // Show/hide absent students section
+            const supervisorAbsentList = document.getElementById('supervisor-absent-list');
+            if (hasAbsentStudents) {
+                supervisorAbsentList.style.display = 'block';
+            } else {
+                supervisorAbsentList.style.display = 'none';
+            }
+            
+            // Update overall honor roll
+            updateSupervisorHonorRoll(allStudentsData);
+        }
+        
+        // Update supervisor honor roll
+        function updateSupervisorHonorRoll(allStudentsData) {
+            // Top memorizers
+            const topMemorizers = allStudentsData
+                .filter(student => student.memorization > 0)
+                .sort((a, b) => b.memorization - a.memorization)
+                .slice(0, 10);
+            
+            // Top reviewers
+            const topReviewers = allStudentsData
+                .filter(student => student.review > 0)
+                .sort((a, b) => b.review - a.review)
+                .slice(0, 10);
+            
+            const memorizationHonorDiv = document.getElementById('supervisor-memorization-honor');
+            const reviewHonorDiv = document.getElementById('supervisor-review-honor');
+            
+            const medals = ['🥇', '🥈', '🥉', '🏅', '⭐', '🌟', '✨', '💫', '🎖️', '🏆'];
+            const groupColors = {
+                group1: 'text-emerald-600',
+                group2: 'text-teal-600', 
+                group3: 'text-purple-600',
+                group4: 'text-orange-600'
+            };
+            
+            if (topMemorizers.length > 0) {
+                memorizationHonorDiv.innerHTML = topMemorizers.map((student, index) => 
+                    `<div class="flex justify-between items-center bg-gray-50 p-2 rounded border">
+                        <span>${medals[index]} ${student.name}</span>
+                        <div class="text-sm">
+                            <span class="${groupColors[student.group]}">المجموعة ${student.group.replace('group', '')}</span>
+                            <span class="text-emerald-600 font-bold ml-2">${student.memorization} صفحة</span>
+                        </div>
+                    </div>`
+                ).join('');
+            } else {
+                memorizationHonorDiv.innerHTML = '<div class="text-gray-500 text-center">لا توجد إنجازات في الحفظ بعد</div>';
+            }
+            
+            if (topReviewers.length > 0) {
+                reviewHonorDiv.innerHTML = topReviewers.map((student, index) => 
+                    `<div class="flex justify-between items-center bg-gray-50 p-2 rounded border">
+                        <span>${medals[index]} ${student.name}</span>
+                        <div class="text-sm">
+                            <span class="${groupColors[student.group]}">المجموعة ${student.group.replace('group', '')}</span>
+                            <span class="text-blue-600 font-bold ml-2">${student.review} صفحة</span>
+                        </div>
+                    </div>`
+                ).join('');
+            } else {
+                reviewHonorDiv.innerHTML = '<div class="text-gray-500 text-center">لا توجد إنجازات في المراجعة بعد</div>';
+            }
+        }
+
+        // Export to CSV with Arabic support
+        function exportToCSV() {
+            // Add BOM for proper UTF-8 encoding in Excel
+            let csvContent = "\uFEFF";
+            
+            // Add header with proper Arabic formatting
+            csvContent += "المجموعة,الشيخ,اسم الطالب,الحضور,الحفظ (صفحات),المراجعة (صفحات),ملاحظات\n";
+            
+            ['group1', 'group2', 'group3', 'group4'].forEach(group => {
+                const rows = document.querySelectorAll(`#${group}-students tr`);
+                const groupNum = group.replace('group', '');
+                const teacher = teachers[group];
+                
+                rows.forEach(row => {
+                    const nameElement = row.querySelector('.student-name');
+                    const studentName = nameElement.textContent.trim();
+                    const attendance = nameElement.dataset.status || 'present';
+                    const memorization = row.querySelector('.memorization-value')?.textContent || '1';
+                    const review = row.querySelector('.review-value')?.textContent || '1';
+                    const notes = row.querySelector('.notes-input')?.value || '';
+                    
+                    const attendanceArabic = {
+                        'present': 'حاضر',
+                        'absent': 'غائب'
+                    };
+                    
+                    // Wrap text fields in quotes to handle commas and special characters
+                    const escapedName = `"${studentName.replace(/"/g, '""')}"`;
+                    const escapedTeacher = `"${teacher.replace(/"/g, '""')}"`;
+                    const escapedNotes = `"${notes.replace(/"/g, '""')}"`;
+                    
+                    csvContent += `"المجموعة ${groupNum}",${escapedTeacher},${escapedName},"${attendanceArabic[attendance]}",${memorization},${review},${escapedNotes}\n`;
+                });
+            });
+            
+            // Add summary statistics
+            csvContent += "\n--- إحصائيات شاملة ---\n";
+            csvContent += `"إجمالي الطلاب","${document.getElementById('total-students').textContent}"\n`;
+            csvContent += `"إجمالي الحضور","${document.getElementById('total-present').textContent}"\n`;
+            csvContent += `"إجمالي الصفحات المحفوظة","${document.getElementById('total-memorized').textContent}"\n`;
+            csvContent += `"إجمالي صفحات المراجعة","${document.getElementById('total-reviewed').textContent}"\n`;
+            
+            // Create blob with proper UTF-8 encoding
+            const blob = new Blob([csvContent], { 
+                type: 'text/csv;charset=utf-8;' 
+            });
+            
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            
+            // Create filename with current date
+            const currentDate = new Date();
+            const dateString = currentDate.toLocaleDateString('ar-SA').replace(/\//g, '-');
+            const timeString = currentDate.toLocaleTimeString('ar-SA', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            }).replace(/:/g, '-');
+            
+            link.setAttribute('download', `تقرير_الحضور_والحفظ_${dateString}_${timeString}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Show success message
+            alert('تم تصدير التقرير بنجاح! يمكنك فتح الملف في Excel أو أي برنامج جداول بيانات.');
+        }
+
+        // Print report as PDF
+        async function printReport() {
+            try {
+                // Show loading message
+                const originalText = event.target.textContent;
+                event.target.textContent = 'جاري إنشاء PDF...';
+                event.target.disabled = true;
+                
+                // Create a temporary container for the report
+                const reportContainer = document.createElement('div');
+                reportContainer.style.cssText = `
+                    position: absolute;
+                    top: -9999px;
+                    left: -9999px;
+                    width: 210mm;
+                    background: white;
+                    padding: 20px;
+                    font-family: 'Amiri', serif;
+                    direction: rtl;
+                `;
+                
+                // Generate report content
+                let reportHTML = `
+                    <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #10b981; padding-bottom: 20px;">
+                        <h1 style="color: #10b981; font-size: 24px; margin-bottom: 10px;">مركز حامل المسك لتحفيظ القرآن الكريم</h1>
+                        <h2 style="color: #374151; font-size: 18px;">تقرير الحضور والحفظ</h2>
+                        <p style="color: #6b7280; font-size: 14px;">التاريخ: ${new Date().toLocaleDateString('ar-SA')}</p>
+                    </div>
+                `;
+                
+                // Add overall statistics
+                reportHTML += `
+                    <div style="margin-bottom: 30px;">
+                        <h3 style="color: #374151; font-size: 16px; margin-bottom: 15px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">📊 الإحصائيات الشاملة</h3>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
+                            <div style="background: #dbeafe; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 20px; font-weight: bold; color: #1d4ed8;">${document.getElementById('total-students').textContent}</div>
+                                <div style="font-size: 12px; color: #1d4ed8;">إجمالي الطلاب</div>
+                            </div>
+                            <div style="background: #d1fae5; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 20px; font-weight: bold; color: #059669;">${document.getElementById('total-present').textContent}</div>
+                                <div style="font-size: 12px; color: #059669;">إجمالي الحضور</div>
+                            </div>
+                            <div style="background: #e9d5ff; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 20px; font-weight: bold; color: #7c3aed;">${document.getElementById('total-memorized').textContent}</div>
+                                <div style="font-size: 12px; color: #7c3aed;">إجمالي الصفحات المحفوظة</div>
+                            </div>
+                            <div style="background: #fed7aa; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 20px; font-weight: bold; color: #ea580c;">${document.getElementById('total-reviewed').textContent}</div>
+                                <div style="font-size: 12px; color: #ea580c;">إجمالي صفحات المراجعة</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add group details
+                const groups = [
+                    { id: 'group1', name: 'المجموعة الأولى', teacher: 'الشيخ محمد بدور', color: '#10b981' },
+                    { id: 'group2', name: 'المجموعة الثانية', teacher: 'الشيخ معتصم التميمي', color: '#14b8a6' },
+                    { id: 'group3', name: 'المجموعة الثالثة', teacher: 'الشيخ عبادة جلال', color: '#8b5cf6' },
+                    { id: 'group4', name: 'المجموعة الرابعة', teacher: 'الشيخ محمد عمار', color: '#f97316' }
+                ];
+                
+                groups.forEach(group => {
+                    const present = document.getElementById(`${group.id}-present`).textContent;
+                    const absent = document.getElementById(`${group.id}-absent`).textContent;
+                    const pages = document.getElementById(`${group.id}-total-pages`).textContent;
+                    
+                    reportHTML += `
+                        <div style="margin-bottom: 25px; page-break-inside: avoid;">
+                            <h3 style="color: ${group.color}; font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid ${group.color}; padding-bottom: 5px;">
+                                ${group.name} - ${group.teacher}
+                            </h3>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+                                <div style="background: #dbeafe; padding: 10px; border-radius: 6px; text-align: center;">
+                                    <div style="font-size: 16px; font-weight: bold; color: #1d4ed8;">${present}</div>
+                                    <div style="font-size: 11px; color: #1d4ed8;">حاضر</div>
+                                </div>
+                                <div style="background: #fee2e2; padding: 10px; border-radius: 6px; text-align: center;">
+                                    <div style="font-size: 16px; font-weight: bold; color: #dc2626;">${absent}</div>
+                                    <div style="font-size: 11px; color: #dc2626;">غائب</div>
+                                </div>
+                                <div style="background: #d1fae5; padding: 10px; border-radius: 6px; text-align: center;">
+                                    <div style="font-size: 16px; font-weight: bold; color: #059669;">${pages}</div>
+                                    <div style="font-size: 11px; color: #059669;">صفحات محفوظة</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                reportContainer.innerHTML = reportHTML;
+                document.body.appendChild(reportContainer);
+                
+                // Generate PDF using html2canvas and jsPDF
+                const canvas = await html2canvas(reportContainer, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff'
+                });
+                
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                const imgData = canvas.toDataURL('image/png');
+                const imgWidth = 210;
+                const pageHeight = 295;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 0;
+                
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+                
+                while (heightLeft >= 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+                
+                // Generate filename with current date
+                const currentDate = new Date();
+                const dateString = currentDate.toLocaleDateString('ar-SA').replace(/\//g, '-');
+                const timeString = currentDate.toLocaleTimeString('ar-SA', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                }).replace(/:/g, '-');
+                
+                pdf.save(`تقرير_الحضور_والحفظ_${dateString}_${timeString}.pdf`);
+                
+                // Clean up
+                document.body.removeChild(reportContainer);
+                
+                // Restore button
+                event.target.textContent = originalText;
+                event.target.disabled = false;
+                
+                alert('تم إنشاء ملف PDF بنجاح!');
+                
+            } catch (error) {
+                console.error('خطأ في إنشاء PDF:', error);
+                alert('حدث خطأ في إنشاء ملف PDF. يرجى المحاولة مرة أخرى.');
+                
+                // Restore button in case of error
+                event.target.textContent = 'طباعة التقرير';
+                event.target.disabled = false;
+            }
+        }
+
+        // Initialize the system when page loads
+        window.onload = init;
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'964b80eba40683cc',t:'MTc1MzQ0NDg5Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
